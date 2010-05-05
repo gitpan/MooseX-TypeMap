@@ -7,7 +7,7 @@ license 'perl';
 all_from 'lib/MooseX/TypeMap.pm';
 
 # prereqs
-requires 'Moose';
+requires 'Moose' => '1.02';
 requires 'MooseX::Types' => '0.19';
 requires 'namespace::clean';
 

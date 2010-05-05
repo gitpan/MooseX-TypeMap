@@ -1,13 +1,14 @@
 package MooseX::TypeMap;
 
-use Moose;
+use Moose 1.02;
 use MooseX::TypeMap::Entry;
 use Scalar::Util qw(refaddr blessed);
 use MooseX::Types::Moose qw(ArrayRef HashRef);
 use Moose::Util::TypeConstraints qw(find_type_constraint);
 use namespace::clean -except => [qw( meta )];
 
-our $VERSION = '0.002000';
+our $VERSION = '0.003000';
+$VERSION = eval $VERSION;
 
 has type_entries => (
   traits => ['Array'],
@@ -59,32 +60,30 @@ sub _build__sorted_entries {
   my %tc_entry_map;
   for my $entry ( $self->subtype_entries ) {
     my $entry_tc = $entry->type_constraint;
-    my $entry_addr = refaddr $entry_tc;
-    $subtypes{$entry_addr} = {};
-    $tc_entry_map{$entry_addr} = $entry;
+    my $entry_ident = refaddr $entry_tc;
+    $subtypes{$entry_ident} = {};
+    $tc_entry_map{$entry_ident} = $entry;
 
     for my $other ( $self->subtype_entries ) {
       my $other_tc = $other->type_constraint;
       if( $other_tc->is_subtype_of($entry_tc) ){
-        $subtypes{$entry_addr}->{refaddr $other_tc} = undef;
+        $subtypes{$entry_ident}->{refaddr $other_tc} = undef;
       }
     }
   }
-
   my @sorted;
   while (keys %subtypes) {
     my @slot;
-    for my $addr (keys %subtypes) {
-      if (!keys %{ $subtypes{$addr} }) {
-        delete $subtypes{$addr};
-        push(@slot, $addr);
+    for my $ident (keys %subtypes) {
+      if (!keys %{ $subtypes{$ident} }) {
+        delete $subtypes{$ident};
+        push(@slot, $ident);
       }
     }
 
     map { delete @{$_}{@slot} } values %subtypes;
     push @sorted, [ @tc_entry_map{@slot} ];
   }
-
   return \@sorted;
 }
 
@@ -127,15 +126,15 @@ sub find_matching_entry {
     if blessed($type) eq 'MooseX::Types::TypeDecorator';
 
   my $cache = $self->_type_to_entry_cache;
-  my $type_refaddr = refaddr($type);
-  if( exists $cache->{$type_refaddr} ){
-    return $cache->{$type_refaddr} if defined $cache->{$type_refaddr};
+  my $type_ident = refaddr $type;
+  if( exists $cache->{$type_ident} ){
+    return $cache->{$type_ident} if defined $cache->{$type_ident};
     return;
   }
 
   for my $entry ($self->type_entries) {
     if( $entry->type_constraint->equals($type) ){
-      return $cache->{$type_refaddr} = $entry;
+      return $cache->{$type_ident} = $entry;
     }
   }
 
@@ -143,11 +142,11 @@ sub find_matching_entry {
     for my $entry (@$family) {
       my $tc = $entry->type_constraint;
       if( $type->equals($tc) || $type->is_subtype_of($tc) ){
-        return $cache->{$type_refaddr} = $entry;
+        return $cache->{$type_ident} = $entry;
       }
     }
   }
-  $cache->{$type_refaddr} = undef;
+  $cache->{$type_ident} = undef;
   return;
 }
 
